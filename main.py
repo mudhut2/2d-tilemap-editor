@@ -1,73 +1,111 @@
+import os
 import pygame
 import csv
 
-# -------------------
-# Setup
-# -------------------
 pygame.init()
 screen = pygame.display.set_mode((1280, 870))
 clock = pygame.time.Clock()
 running = True
 
+# ----------------------
+# Grid settings
+# ----------------------
 grid_width = 20
 grid_height = 15
-tile_size = 48
+tile_size = 48  # size of tiles in the main grid
 grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
 
-empty_tile = pygame.transform.scale(pygame.image.load("textures/bottom.png"), (tile_size, tile_size))
-floor_tile = pygame.transform.scale(pygame.image.load("textures/golgTex.jpg"), (tile_size, tile_size))
-wall_tile  = pygame.transform.scale(pygame.image.load("textures/ancient-wall1.jpg"),  (tile_size, tile_size))
+# ----------------------
+# Menu settings
+# ----------------------
+tiles_folder = "textures"
+menu_tile_size = 26   # smaller icons in menu
+menu_width = 200
+game_width = screen.get_width() - menu_width
+menu_padding = 10
+menu_cols = 2         # number of columns in the menu
 
-# Map tile types to colors
-tile_types = {
-    0: empty_tile, # empty
-    1: floor_tile,  # wall
-    2: wall_tile,   # water
-}
-current_tile_type = 1  # start with "wall" for painting
+# Load all tile images
+tile_images = []
+for filename in sorted(os.listdir(tiles_folder)):
+    if filename.lower().endswith((".png", ".jpg", ".jpeg")):
+        path = os.path.join(tiles_folder, filename)
+        img = pygame.image.load(path)
+        img = pygame.transform.scale(img, (tile_size, tile_size))
+        tile_images.append(img)
+
+# start with first tile
+current_tile_type = 1
+
 pygame.mouse.set_cursor(*pygame.cursors.broken_x)
 
+# Main loop
 while running:
     # Handle events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        # Change current tile type with number keys
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_0:
-                current_tile_type = 0
-            elif event.key == pygame.K_1:
-                current_tile_type = 1
-            elif event.key == pygame.K_2:
-                current_tile_type = 2
-
 
     # Handle mouse input
     mouse_buttons = pygame.mouse.get_pressed()
+    mouse_pos = pygame.mouse.get_pos()
+
+    # Paint tiles on the grid
     if mouse_buttons[0] or mouse_buttons[2]:  # left or right click
-        mouse_pos = pygame.mouse.get_pos()
         tile_x = mouse_pos[0] // tile_size
         tile_y = mouse_pos[1] // tile_size
-        # ensure click is inside grid
-        if 0 <= tile_x < grid_width and 0 <= tile_y < grid_height:
-            if mouse_buttons[0]:  # left click
+        # ensure click is inside grid area
+        if 0 <= tile_x < grid_width and 0 <= tile_y < grid_height and mouse_pos[0] < game_width:
+            if mouse_buttons[0]:  # left click = paint
                 grid[tile_y][tile_x] = current_tile_type
-            elif mouse_buttons[2]:  # right click
-                grid[tile_y][tile_x] = 0  # erase tile
-    # Draw grid
-    screen.fill(pygame.Color("orange"))  # background
+            elif mouse_buttons[2]:  # right click = erase
+                grid[tile_y][tile_x] = 0
+
+    # Select tiles from the menu
+    if mouse_buttons[0] and mouse_pos[0] > game_width:  # clicked inside menu
+        rel_x = mouse_pos[0] - game_width - menu_padding
+        rel_y = mouse_pos[1] - menu_padding
+        col = rel_x // (menu_tile_size + menu_padding)
+        row = rel_y // (menu_tile_size + menu_padding)
+        index = row * menu_cols + col
+        if 0 <= col < menu_cols and 0 <= index < len(tile_images):
+            current_tile_type = index
+
+    # ----------------------
+    # Draw everything
+    # ----------------------
+    screen.fill(pygame.Color("grey"))  # background
+
+    # Draw grid with tiles
     for y in range(grid_height):
         for x in range(grid_width):
             tile_type = grid[y][x]
-            if tile_type != 0:
-                screen.blit(tile_types[tile_type], (x * tile_size, y * tile_size))
+            if 0 <= tile_type < len(tile_images):
+                screen.blit(tile_images[tile_type], (x * tile_size, y * tile_size))
+
+            # draw grid outline
             pygame.draw.rect(
                 screen,
-                pygame.Color("grey"),
+                pygame.Color("black"),
                 pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size),
-                width=1,  # outline thickness
-                border_radius=2  # rounded corners (optional)
+                width=1
             )
+
+    # Draw menu background
+    pygame.draw.rect(screen, pygame.Color("blue"), (game_width, 0, menu_width, screen.get_height()))
+
+    # Draw menu tiles in grid layout
+    for i, tile in enumerate(tile_images):
+        menu_tile = pygame.transform.scale(tile, (menu_tile_size, menu_tile_size))
+        col = i % menu_cols
+        row = i // menu_cols
+        x = game_width + menu_padding + col * (menu_tile_size + menu_padding)
+        y = menu_padding + row * (menu_tile_size + menu_padding)
+        screen.blit(menu_tile, (x, y))
+
+        # highlight selected tile
+        if i == current_tile_type:
+            pygame.draw.rect(screen, pygame.Color("yellow"), (x - 2, y - 2, menu_tile_size + 4, menu_tile_size + 4), 2)
 
     pygame.display.flip()
     clock.tick(60)
