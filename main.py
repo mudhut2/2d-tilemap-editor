@@ -10,9 +10,9 @@ running = True
 # ----------------------
 # Grid settings
 # ----------------------
-grid_width = 20
-grid_height = 15
-tile_size = 48  # size of tiles in the main grid
+grid_width = 12
+grid_height = 9
+tile_size = 90  # size of tiles in the main grid
 grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
 
 # ----------------------
@@ -25,7 +25,25 @@ game_width = screen.get_width() - menu_width
 menu_padding = 10
 menu_cols = 2         # number of columns in the menu
 
+# ----------------------
+# CSV save/load helpers
+# ----------------------
+def save_grid_to_csv(filename, grid):
+    with open(filename, mode="w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(grid)
+
+def load_grid_from_csv(filename):
+    loaded_grid = []
+    with open(filename, mode="r") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            loaded_grid.append([int(x) for x in row])  # convert strings to ints
+    return loaded_grid
+
+# ----------------------
 # Load all tile images
+# ----------------------
 tile_images = []
 for filename in sorted(os.listdir(tiles_folder)):
     if filename.lower().endswith((".png", ".jpg", ".jpeg")):
@@ -45,6 +63,15 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+
+        # Save/load with keys
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_s:  # save to CSV
+                save_grid_to_csv("level.csv", grid)
+                print("✅ Grid saved to level.csv")
+            elif event.key == pygame.K_l:  # load from CSV
+                grid = load_grid_from_csv("level.csv")
+                print("✅ Grid loaded from level.csv")
 
     # Handle mouse input
     mouse_buttons = pygame.mouse.get_pressed()
